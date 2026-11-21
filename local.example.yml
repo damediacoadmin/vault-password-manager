@@ -1,0 +1,14 @@
+# Copy to local.yml and fill in. local.yml is ignored by git.
+settings:
+  base:
+    DEVELOPMENT_TEAM: YOURTEAMID          # your Apple developer team ID
+    VAULT_SYNC_URL: https://your-domain.example/vault-sync/v/   # where you deployed sync-worker; leave empty to turn sync off
+targets: {}
+# Optional: per-target Release signing (Ad Hoc / Developer ID) goes under targets:
+#   Vault:
+#     settings:
+#       configs:
+#         Release:
+#           CODE_SIGN_STYLE: Manual
+#           CODE_SIGN_IDENTITY: "iPhone Distribution"
+#           PROVISIONING_PROFILE_SPECIFIER: "Your Ad Hoc profile"

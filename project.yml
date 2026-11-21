@@ -1,0 +1,113 @@
+include:
+  - local.yml
+name: Vault
+options:
+  bundleIdPrefix: com.damediaco
+  deploymentTarget:
+    iOS: "17.0"
+    macOS: "14.0"
+  createIntermediateGroups: true
+settings:
+  base:
+    CODE_SIGN_STYLE: Automatic
+    MARKETING_VERSION: "1.0"
+    CURRENT_PROJECT_VERSION: "2"
+    SWIFT_VERSION: "5.0"
+    SWIFT_STRICT_CONCURRENCY: minimal
+    ENABLE_USER_SCRIPT_SANDBOXING: YES
+targets:
+  Vault:
+    type: application
+    platform: iOS
+    sources:
+      - path: iOS
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.damediaco.vault
+        PRODUCT_NAME: Vault
+        SWIFT_ACTIVE_COMPILATION_CONDITIONS: $(inherited) VAULT_APP
+        INFOPLIST_FILE: iOS/Resources/Info.plist
+        CODE_SIGN_ENTITLEMENTS: iOS/Resources/Vault.entitlements
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME: AccentColor
+        TARGETED_DEVICE_FAMILY: "1"
+        SUPPORTS_MACCATALYST: NO
+    dependencies:
+      - target: VaultAutoFill
+    scheme:
+      testTargets:
+        - VaultTests
+  VaultAutoFill:
+    type: app-extension
+    platform: iOS
+    sources:
+      - path: AutoFill/iOS
+      - path: AutoFill/Shared
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.damediaco.vault.autofill
+        PRODUCT_NAME: VaultAutoFill
+        INFOPLIST_FILE: AutoFill/iOS/Info.plist
+        CODE_SIGN_ENTITLEMENTS: AutoFill/iOS/AutoFill.entitlements
+        TARGETED_DEVICE_FAMILY: "1"
+  VaultTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: Tests
+    dependencies:
+      - target: Vault
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        BUNDLE_LOADER: $(TEST_HOST)
+        TEST_HOST: $(BUILT_PRODUCTS_DIR)/Vault.app/Vault
+  VaultMac:
+    type: application
+    platform: macOS
+    sources:
+      - path: Mac
+      - path: Shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.damediaco.vault.mac
+        PRODUCT_NAME: Vault
+        INFOPLIST_FILE: Mac/Resources/Info.plist
+        CODE_SIGN_ENTITLEMENTS: Mac/Resources/VaultMac.entitlements
+        ENABLE_HARDENED_RUNTIME: YES
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+    dependencies:
+      - target: VaultAutoFillMac
+      - target: vault-mcp
+        copy:
+          destination: executables
+  VaultAutoFillMac:
+    type: app-extension
+    platform: macOS
+    sources:
+      - path: AutoFill/macOS
+      - path: AutoFill/Shared
+      - path: Shared
+        excludes:
+          - "*.txt"
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.damediaco.vault.mac.autofill
+        PRODUCT_NAME: VaultAutoFill
+        INFOPLIST_FILE: AutoFill/macOS/Info.plist
+        CODE_SIGN_ENTITLEMENTS: AutoFill/macOS/AutoFillMac.entitlements
+        ENABLE_HARDENED_RUNTIME: YES
+  vault-mcp:
+    type: tool
+    platform: macOS
+    sources:
+      - path: MCP
+    settings:
+      base:
+        PRODUCT_NAME: vault-mcp
+        PRODUCT_BUNDLE_IDENTIFIER: com.damediaco.vault.mcp
+        ENABLE_HARDENED_RUNTIME: YES
+        OTHER_CODE_SIGN_FLAGS: "--identifier com.damediaco.vault.mcp --timestamp"
+        SKIP_INSTALL: YES

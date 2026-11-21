@@ -1,0 +1,13 @@
+{
+  "name": "vault-sync",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-10-01",
+  "workers_dev": false,
+  "preview_urls": false,
+  // Set your own domain. Copy this file to wrangler.local.jsonc, add "account_id", and deploy with -c wrangler.local.jsonc.
+  "routes": [{ "pattern": "your-domain.example/vault-sync/*", "zone_name": "your-domain.example" }],
+  // One SQLite Durable Object per vault. It only ever holds ciphertext: the vault key never leaves the devices.
+  "durable_objects": { "bindings": [{ "name": "VAULTS", "class_name": "VaultBox" }] },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["VaultBox"] }],
+  "observability": { "enabled": false }
+}

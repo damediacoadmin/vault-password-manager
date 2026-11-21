@@ -1,0 +1,8 @@
+build/
+*.xcuserstate
+xcuserdata/
+local.yml
+sync-worker/wrangler.local.jsonc
+sync-worker/node_modules/
+Vault.xcodeproj/
+*.png.tmp
