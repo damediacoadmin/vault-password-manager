@@ -34,6 +34,8 @@ Not covered: an attacker with your unlocked device and your biometrics, or malwa
 
 ## Build
 
+Step-by-step setup, from clone to iPhone, Mac and Chrome with your own sync server: [SETUP.md](SETUP.md). Short version:
+
 Requirements: Xcode 26 or later, [XcodeGen](https://github.com/yonaskolb/XcodeGen).
 
 1. `cp local.example.yml local.yml` and set your team ID and, if you want sync, your sync URL.
