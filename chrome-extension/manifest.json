@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "Vault",
   "short_name": "Vault",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Fill, save and generate passwords and 2FA codes from the Vault app on your Mac.",
   "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAsBU8d8z6++HXbcQU0oEWB/12uygdtjdzGJbrpt/MfVxqGv0Oq+x/5uN03F9itIhVYg64sP/ncqzMU/J884yg1bu/HhY1RaQuHmOuIxkRU+hXBsVV67/2B6GQVv141NdtGMJBkBaMoKcIL2KbbanVJAwwBWonh09v5gdw7ScQsHQt6MIiSexxp/e8fassHsb+1F8aBph/38h9fso38ieYg3eoTu3sZ58vuEGDsd1P4TYEr4IoUXlp+OUhj7lofK3ilBjwyJENeO/VVaIR4nPAwFouVQBA0AN1sGtFH3YNUkqdgGAeYSdouKKKikXacQ3+SYiKIPiheD9CF7eK1FAS1QIDAQAB",
   "minimum_chrome_version": "120",

@@ -10,7 +10,13 @@ const HOST = "com.damediaco.vault";
 // through the Vault app on this Mac. Linking to the iPhone takes over once done.
 async function mode() { return (await chrome.storage.local.get("mode")).mode || "mac"; }
 
-chrome.idle.onStateChanged.addListener((s) => { if (s === "locked") Local.lock(); });
+chrome.idle?.onStateChanged.addListener((s) => { if (s === "locked") Local.lock(); });
+
+// An unpacked extension picks up new code from disk on its own, but not a new manifest. If the
+// manifest on disk is newer than the one Chrome loaded, reload once so new permissions apply.
+fetch(chrome.runtime.getURL("manifest.json")).then((r) => r.json()).then((disk) => {
+  if (disk.version !== chrome.runtime.getManifest().version) chrome.runtime.reload();
+}).catch(() => {});
 let port = null;
 let nextId = 1;
 const waiting = new Map();
