@@ -50,6 +50,7 @@ struct SyncPanel: View {
     @EnvironmentObject var store: VaultStore
     @ObservedObject var sync: Sync
     @State private var joining = false
+    @State private var linkingChrome = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -89,6 +90,20 @@ struct SyncPanel: View {
                             .frame(maxWidth: .infinity, alignment: .leading).padding(16)
                         }
                     }
+                    #if os(iOS) && VAULT_APP
+                    Hairline()
+                    Button { linkingChrome = true } label: {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Link Chrome").font(.plex(15)).foregroundStyle(Ink.text)
+                                Text("Scan the QR code in the Vault Chrome extension").font(.plex(12)).foregroundStyle(Ink.muted)
+                            }
+                            Spacer(); Text("›").foregroundStyle(Ink.muted)
+                        }
+                        .padding(.horizontal, 16).frame(minHeight: 60).contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    #endif
                     Hairline()
                     Button { joining = true } label: {
                         HStack { Text("Join a vault from another device").font(.plex(15)).foregroundStyle(Ink.text); Spacer(); Text("›").foregroundStyle(Ink.muted) }
@@ -99,11 +114,14 @@ struct SyncPanel: View {
             }
         }
         .sheet(isPresented: $joining) { JoinVaultView(sync: sync) { joining = false } }
+        #if os(iOS) && VAULT_APP
+        .fullScreenCover(isPresented: $linkingChrome) { LinkChromeView(sync: sync) { linkingChrome = false } }
+        #endif
     }
 
     private func deviceRow(_ d: SyncedDevice, me: Bool) -> some View {
         HStack(spacing: 10) {
-            Image(systemName: d.platform == "Mac" ? "laptopcomputer" : "iphone").foregroundStyle(Ink.mid).frame(width: 20)
+            Image(systemName: d.platform == "Mac" ? "laptopcomputer" : d.platform == "Chrome" ? "globe" : "iphone").foregroundStyle(Ink.mid).frame(width: 20)
             Text(me ? "\(d.name) (this device)" : d.name).font(.plex(14)).foregroundStyle(Ink.text)
             Spacer()
             Text(me ? "now" : d.lastSeen.formatted(.relative(presentation: .named))).font(.mono(12)).foregroundStyle(Ink.muted)
@@ -199,3 +217,93 @@ struct TransferTrace: View {
         }
     }
 }
+
+/// Last AutoFill request as iOS described it (site or app names only).
+struct AutoFillTraceView: View {
+    @State private var text = ""
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Eyebrow("Last AutoFill request")
+            Panel {
+                Text(text.isEmpty ? "Nothing yet. Tap a password box in any app, open Vault, then come back here." : text)
+                    .font(.mono(12)).foregroundStyle(Ink.mid).textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading).padding(14)
+            }
+        }
+        .padding(.top, 12)
+        .onAppear(perform: reload)
+        #if os(iOS)
+        .onReceive(NotificationCenter.default.publisher(for: UIApplication.willEnterForegroundNotification)) { _ in reload() }
+        #endif
+    }
+    private func reload() { text = (try? VaultKeychain.read("afTrace")).flatMap { String(data: $0, encoding: .utf8) } ?? "" }
+}
+
+#if os(iOS) && VAULT_APP
+import LocalAuthentication
+
+/// Scan the QR code the Chrome extension shows, confirm with Face ID, and hand Chrome the key.
+struct LinkChromeView: View {
+    @EnvironmentObject var store: VaultStore
+    @ObservedObject var sync: Sync
+    var done: () -> Void
+    @State private var request: ChromeLink.Request?
+    @State private var working = false
+    @State private var linked = false
+    @State private var error: String?
+
+    var body: some View {
+        if let request {
+            VStack(alignment: .leading, spacing: 0) {
+                HStack { Eyebrow("Link Chrome"); Spacer(); CapsButton("Close", color: Ink.text, action: done) }
+                Spacer()
+                Text(linked ? "Chrome is linked." : "Link Chrome to your vault?")
+                    .font(.plex(30, .semibold, relativeTo: .largeTitle)).foregroundStyle(Ink.text)
+                Text(linked ? "Chrome now fills, saves and syncs your logins. You can unlink it from the Vault button in Chrome."
+                            : "Chrome gets its own end-to-end encrypted copy of your logins and keeps it in sync. The sync server never sees your passwords.")
+                    .font(.plex(16)).foregroundStyle(Ink.mid).padding(.top, 10).fixedSize(horizontal: false, vertical: true)
+                if !linked {
+                    Text("Only continue if you just clicked Link with iPhone in Chrome yourself.")
+                        .font(.plex(14)).foregroundStyle(Ink.amber).padding(.top, 14).fixedSize(horizontal: false, vertical: true)
+                }
+                if let error { Text(error).font(.plex(14)).foregroundStyle(Ink.red).padding(.top, 12) }
+                Spacer()
+                if linked {
+                    Button("Done", action: done).buttonStyle(InkButtonStyle(kind: .primary, height: 52))
+                } else {
+                    Button(working ? "Linking..." : "Link with \(VaultCrypto.biometryName())") { link(request) }
+                        .buttonStyle(InkButtonStyle(kind: .primary, height: 52)).disabled(working)
+                    Button("Cancel", action: done).buttonStyle(InkButtonStyle(kind: .secondary, height: 52)).padding(.top, 10)
+                }
+            }
+            .padding(16)
+            .background(Ink.bg.ignoresSafeArea())
+            .preferredColorScheme(.dark)
+        } else {
+            QRScannerView(title: "Scan Chrome's QR code",
+                          hint: "In Chrome, click the Vault button, then Link with iPhone. Point the camera at the code.",
+                          accept: { ChromeLink.parse($0) != nil }) { s in
+                if let s, let r = ChromeLink.parse(s) { request = r } else { done() }
+            }
+        }
+    }
+
+    private func link(_ r: ChromeLink.Request) {
+        working = true; error = nil
+        Task {
+            do {
+                let ctx = LAContext()
+                let policy: LAPolicy = ctx.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: nil)
+                    ? .deviceOwnerAuthenticationWithBiometrics : .deviceOwnerAuthentication
+                guard try await ctx.evaluatePolicy(policy, localizedReason: "link Chrome to your vault") else { throw VaultError.cancelled }
+                await sync.syncNow()
+                try await ChromeLink.send(r, store: store, deviceName: "iPhone")
+                linked = true
+            } catch VaultError.cancelled {
+            } catch let e as LAError where e.code == .userCancel || e.code == .appCancel || e.code == .systemCancel {
+            } catch { self.error = error.localizedDescription }
+            working = false
+        }
+    }
+}
+#endif

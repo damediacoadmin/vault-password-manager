@@ -111,7 +111,7 @@ struct MacSetup: View {
 
 // MARK: Main window
 
-enum MacSection: Hashable { case kind(ItemKind), health, claude, settings }
+enum MacSection: Hashable { case kind(ItemKind), health, claude, chrome, settings }
 
 struct MacMain: View {
     @EnvironmentObject var store: VaultStore
@@ -133,6 +133,7 @@ struct MacMain: View {
                 MacDetail(id: selected) { editing = $0; isNew = false }.frame(maxWidth: .infinity)
             case .health: MacHealth { selected = $0; section = .kind(.login) }
             case .claude: MacClaudeAccess()
+            case .chrome: MacChromeAccess()
             case .settings: MacSettings()
             }
         }
@@ -160,6 +161,7 @@ struct MacMain: View {
             Eyebrow("Safety").padding(.horizontal, 16).padding(.top, 18).padding(.bottom, 6)
             side(.health, "Health", nil)
             side(.claude, "Claude access", nil)
+            side(.chrome, "Chrome", nil)
             side(.settings, "Settings", nil)
             Spacer()
             VStack(alignment: .leading, spacing: 6) {
@@ -352,6 +354,8 @@ struct MacEdit: View {
     var saved: (UUID?) -> Void
     @State private var password = ""
     @State private var url = ""
+    @State private var genOptions = PasswordGenerator.saved
+    @State private var showGen = false
 
     init(item: VaultItem, isNew: Bool, saved: @escaping (UUID?) -> Void) {
         _item = State(initialValue: item); self.isNew = isNew; self.saved = saved
@@ -364,9 +368,13 @@ struct MacEdit: View {
             MacField(label: "Title", text: $item.title)
             if item.kind == .login {
                 MacField(label: "Username or email", text: $item.username, mono: true)
+                UsernameChips(username: $item.username)
                 HStack(alignment: .bottom) {
                     MacField(label: "Password", text: $password, mono: true)
-                    CapsButton("New") { password = PasswordGenerator.make(.init()) }
+                    CapsButton("New") { password = PasswordGenerator.make(genOptions); showGen = true }
+                }
+                if showGen {
+                    GeneratorControls(options: $genOptions).onChange(of: genOptions) { _, o in password = PasswordGenerator.make(o) }
                 }
                 MacField(label: "Website", text: $url, mono: true)
                 MacField(label: "2FA setup key", text: $item.otp, mono: true)
@@ -543,6 +551,7 @@ struct MacSettings: View {
             VStack(alignment: .leading, spacing: 12) {
                 Text("Settings").font(.plex(24, .semibold)).foregroundStyle(Ink.text)
                 SyncPanel(sync: sync).padding(.top, 8)
+                QuickUsernamesPanel().padding(.top, 8)
                 TransferTrace()
                 Eyebrow("Move from Dashlane").padding(.top, 8)
                 Panel {

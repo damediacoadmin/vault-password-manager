@@ -20,6 +20,9 @@
     <key>ASCredentialProviderExtensionCapabilities</key><dict>
       <key>ProvidesPasswords</key><true/>
       <key>ProvidesPasskeys</key><true/>
+      <key>SupportsSavePasswordCredentials</key><true/>
+      <key>SupportsGeneratePasswordCredentials</key><true/>
+      <key>SupportsGeneratePasswordCredentialsWithUI</key><false/>
       <key>SupportsCredentialExchange</key><true/>
       <key>SupportedCredentialExchangeVersions</key><array><string>1.0</string></array>
       <key>ProvidesOneTimeCodes</key><true/>

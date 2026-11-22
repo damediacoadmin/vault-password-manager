@@ -5,6 +5,7 @@ import AuthenticationServices
 /// QuickType bar. Only the site and username are shared with the system, never a password.
 enum CredentialIdentities {
     static func sync(_ items: [VaultItem]) {
+        if TestMode.isOn { return }
         let store = ASCredentialIdentityStore.shared
         store.getState { state in
             guard state.isEnabled else { return }
@@ -16,6 +17,12 @@ enum CredentialIdentities {
                                                                   recordIdentifier: it.id.uuidString))
                 }
                 guard !it.password.isEmpty else { continue }
+                if #available(iOS 26.2, macOS 26.2, *) {
+                    for u in it.urls where u.hasPrefix("app:") {
+                        let sid = ASCredentialServiceIdentifier(identifier: String(u.dropFirst(4)), type: .app)
+                        identities.append(ASPasswordCredentialIdentity(serviceIdentifier: sid, user: it.username, recordIdentifier: it.id.uuidString))
+                    }
+                }
                 // Register the exact host and the main domain, so sign-in pages on other
                 // subdomains (accounts.google.com for google.com) still suggest the login.
                 let hosts = Array(Set(it.urls.compactMap(Domain.host(from:)).flatMap { [$0, Domain.base($0)] }))

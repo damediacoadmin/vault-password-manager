@@ -7,7 +7,9 @@ import CryptoKit
 @MainActor
 final class Sync: ObservableObject {
     /// Sync server, set at build time with VAULT_SYNC_URL (see local.yml). Ends with "/v/".
-    static let base: URL = {
+    static let base: URL = TestMode.isOn ? URL(string: "https://sync.invalid/v/")! : server
+    /// The sync server itself. Test runs use it only through explicit test hooks, never for real syncing.
+    static let server: URL = {
         let s = (Bundle.main.object(forInfoDictionaryKey: "VaultSyncURL") as? String) ?? ""
         return URL(string: s.isEmpty || s.hasPrefix("$(") ? "https://sync.invalid/v/" : s)!
     }()
@@ -222,6 +224,9 @@ final class Sync: ObservableObject {
         out.items = byID.values.filter { it in (tomb[it.id.uuidString].map { $0 < it.modified } ?? true) }
             .sorted { $0.created < $1.created }
         out.deleted = tomb.isEmpty ? nil : tomb
+        if (b.quickUsernamesChanged ?? .distantPast) > (a.quickUsernamesChanged ?? .distantPast) {
+            out.quickUsernames = b.quickUsernames; out.quickUsernamesChanged = b.quickUsernamesChanged
+        }
         var devs = [String: SyncedDevice]()
         for d in (a.devices ?? []) + (b.devices ?? []) { if let c = devs[d.id], c.lastSeen >= d.lastSeen { continue }; devs[d.id] = d }
         out.devices = devs.isEmpty ? nil : Array(devs.values)

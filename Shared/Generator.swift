@@ -2,14 +2,21 @@ import Foundation
 import Security
 
 enum PasswordGenerator {
-    struct Options: Equatable {
-        enum Style: String, CaseIterable { case words = "Words", characters = "Characters" }
-        var style: Style = .words
+    struct Options: Equatable, Codable {
+        enum Style: String, CaseIterable, Codable { case words = "Words", characters = "Characters" }
+        var style: Style = .characters
         var wordCount = 5
         var capitals = true
         var number = true
         var length = 20
         var symbols = true
+        var digits = true
+    }
+
+    /// Your last generator choices, shared by the app and AutoFill (stored in the shared Keychain).
+    static var saved: Options {
+        get { (try? VaultKeychain.read("genOptions")).flatMap { try? JSONDecoder().decode(Options.self, from: $0) } ?? Options() }
+        set { if let d = try? JSONEncoder().encode(newValue) { try? VaultKeychain.write("genOptions", d) } }
     }
 
     static let words: [String] = {
@@ -37,6 +44,8 @@ enum PasswordGenerator {
 
     static func make(_ o: Options) -> String {
         switch o.style {
+        case .words where words.count < 1000:
+            var c = o; c.style = .characters; return make(c)   // word list missing: never fall back to a short list
         case .words:
             var parts = (0..<max(3, o.wordCount)).map { _ in words[uniform(words.count)] }
             if o.capitals {
@@ -46,14 +55,20 @@ enum PasswordGenerator {
                 if !any { let i = uniform(parts.count); parts[i] = parts[i].capitalized }
             }
             if o.number { parts.insert(String(uniform(10)), at: 1 + uniform(parts.count - 1)) }
-            return parts.joined(separator: "-")
+            var out = parts.joined(separator: "-")
+            if o.symbols {   // add one special character for sites that require it
+                let sym = Array("!#$%&*+=?@")
+                out.append(sym[uniform(sym.count)])
+            }
+            return out
         case .characters:
             let lower = Array("abcdefghijkmnopqrstuvwxyz"), upper = Array("ABCDEFGHJKLMNPQRSTUVWXYZ"),
                 digits = Array("23456789"), sym = Array("!#$%&*+-=?@^_")
-            var pools = [lower, upper, digits]
+            var pools = [lower, upper]
+            if o.digits { pools.append(digits) }
             if o.symbols { pools.append(sym) }
             let all = pools.flatMap { $0 }
-            let n = max(12, o.length)
+            let n = max(8, o.length)
             var chars = pools.map { $0[uniform($0.count)] }            // one from each pool
             while chars.count < n { chars.append(all[uniform(all.count)]) }
             for i in stride(from: chars.count - 1, to: 0, by: -1) { chars.swapAt(i, uniform(i + 1)) }

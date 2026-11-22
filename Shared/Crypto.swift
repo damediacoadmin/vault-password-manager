@@ -196,7 +196,7 @@ extension JSONDecoder {
 /// group shared by the app and its AutoFill extension, readable only while the device is
 /// unlocked, and never synced or backed up to another device.
 enum VaultKeychain {
-    static let service = "com.damediaco.vault"
+    static let service = TestMode.isOn ? "com.damediaco.vault.test" : "com.damediaco.vault"
     static var accessGroup: String? = {
         // Team-prefixed group from the entitlements; nil in unsigned test runs.
         guard let prefix = Bundle.main.object(forInfoDictionaryKey: "AppIdentifierPrefix") as? String, !prefix.isEmpty,

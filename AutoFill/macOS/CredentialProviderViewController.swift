@@ -13,7 +13,9 @@ final class CredentialProviderViewController: ASCredentialProviderViewController
             self?.extensionContext.cancelRequest(withError: NSError(domain: ASExtensionErrorDomain, code: ASExtensionError.userCanceled.rawValue))
         }
         model.finish = { [weak self] item in
-            if let t = TOTP(item.otp) {
+            if let p = self?.model.copyForConfirmBox {
+                NSPasteboard.general.clearContents(); NSPasteboard.general.setString(p, forType: .string)
+            } else if let t = TOTP(item.otp) {
                 NSPasteboard.general.clearContents()
                 NSPasteboard.general.setString(t.code(), forType: .string)
             }
@@ -31,16 +33,16 @@ final class CredentialProviderViewController: ASCredentialProviderViewController
     }
 
     override func prepareCredentialList(for serviceIdentifiers: [ASCredentialServiceIdentifier]) {
-        model.sites = serviceIdentifiers.map(\.identifier); model.mode = .password; model.start()
+        model.setServices(serviceIdentifiers); model.mode = .password; model.start()
     }
 
     @available(macOS 15.0, *)
     override func prepareOneTimeCodeCredentialList(for serviceIdentifiers: [ASCredentialServiceIdentifier]) {
-        model.sites = serviceIdentifiers.map(\.identifier); model.mode = .code; model.start()
+        model.setServices(serviceIdentifiers); model.mode = .code; model.start()
     }
 
     override func prepareCredentialList(for serviceIdentifiers: [ASCredentialServiceIdentifier], requestParameters: ASPasskeyCredentialRequestParameters) {
-        model.sites = serviceIdentifiers.map(\.identifier)
+        model.setServices(serviceIdentifiers)
         model.mode = .password
         model.signIn = .init(rp: requestParameters.relyingPartyIdentifier, clientDataHash: requestParameters.clientDataHash,
                              allowed: requestParameters.allowedCredentials)
@@ -70,7 +72,7 @@ final class CredentialProviderViewController: ASCredentialProviderViewController
             return
         }
         model.directID = credentialRequest.credentialIdentity.recordIdentifier.flatMap(UUID.init(uuidString:))
-        model.sites = [credentialRequest.credentialIdentity.serviceIdentifier.identifier]
+        model.setServices([credentialRequest.credentialIdentity.serviceIdentifier])
         if #available(macOS 15.0, *), credentialRequest.type == .oneTimeCode { model.mode = .code } else { model.mode = .password }
         model.start()
     }

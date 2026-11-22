@@ -128,6 +128,21 @@ final class VaultStore: ObservableObject {
         }
     }
 
+    func setQuickUsernames(_ list: [String]) {
+        mutate { $0.quickUsernames = list; $0.quickUsernamesChanged = Date() }
+    }
+
+    /// Your saved emails and usernames first, then the ones you use most.
+    func usernameSuggestions(limit: Int = 8) -> [String] {
+        var out = (payload.quickUsernames ?? []).filter { !$0.isEmpty }
+        var count = [String: Int]()
+        for it in payload.items where it.kind == .login && !it.username.isEmpty { count[it.username, default: 0] += 1 }
+        for (u, _) in count.sorted(by: { $0.value == $1.value ? $0.key < $1.key : $0.value > $1.value }) where !out.contains(u) {
+            out.append(u)
+        }
+        return Array(out.prefix(limit))
+    }
+
     func toggleFavorite(_ id: UUID) {
         mutate { p in if let i = p.items.firstIndex(where: { $0.id == id }) { p.items[i].favorite.toggle(); p.items[i].modified = Date() } }
     }

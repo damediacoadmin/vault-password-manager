@@ -11,6 +11,7 @@ struct VaultMacApp: App {
             MacRoot()
                 .environmentObject(delegate.store)
                 .environmentObject(delegate.ai)
+                .environmentObject(delegate.browser)
                 .environmentObject(delegate.sync)
                 .onChange(of: delegate.store.state) { _, s in if s == .unlocked { CredentialIdentities.sync(delegate.store.items); Task { await delegate.sync.syncNow() } } }
                 .frame(minWidth: 860, minHeight: 560)
@@ -26,7 +27,7 @@ struct VaultMacApp: App {
             }
         }
 
-        MenuBarExtra {
+        MenuBarExtra(isInserted: .constant(!TestMode.isOn)) {
             MenuBarContent().environmentObject(delegate.store).environmentObject(delegate.ai)
         } label: {
             Image(systemName: delegate.store.state == .unlocked ? "lock.open" : "lock")
@@ -38,13 +39,18 @@ struct VaultMacApp: App {
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let store = VaultStore()
     lazy var ai = AIBroker(store: store)
+    lazy var browser = BrowserBroker(store: store)
     lazy var sync = Sync(store: store)
     private var idleTimer: Timer?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         Fonts.register()
+        #if DEBUG
+        TestSeed.run(store)
+        #endif
         store.onChange = { CredentialIdentities.sync($0.items) }
-        ai.start()
+        if !TestMode.isOn { ai.start() }
+        browser.start()
         _ = sync
         // Auto-lock when the whole Mac has had no keyboard or mouse use for the chosen time
         // (working in other apps counts as activity), and always on sleep or screen lock.
@@ -72,7 +78,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { false }
-    func applicationWillTerminate(_ notification: Notification) { ai.stop(); store.lock() }
+    func applicationWillTerminate(_ notification: Notification) { ai.stop(); browser.stop(); store.lock() }
 }
 
 /// Mac auto-lock setting, separate from the iPhone's. 0 = only on sleep or screen lock.

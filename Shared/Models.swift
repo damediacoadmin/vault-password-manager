@@ -150,6 +150,8 @@ struct VaultPayload: Codable {
     var autoLockSeconds: Int = 60
     var deleted: [String: Date]? = nil      // tombstones so deletions sync
     var devices: [SyncedDevice]? = nil     // devices that share this vault
+    var quickUsernames: [String]? = nil   // your own emails and usernames, offered as one-tap chips
+    var quickUsernamesChanged: Date? = nil
 }
 
 struct SyncedDevice: Codable, Hashable, Identifiable {

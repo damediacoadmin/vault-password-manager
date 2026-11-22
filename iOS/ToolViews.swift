@@ -125,8 +125,8 @@ struct ScoreBar: View {
 }
 
 struct GeneratorView: View {
-    @State private var options = PasswordGenerator.Options()
-    @State private var value = PasswordGenerator.make(.init())
+    @State private var options = PasswordGenerator.saved
+    @State private var value = PasswordGenerator.make(PasswordGenerator.saved)
 
     var body: some View {
         NavigationStack {
@@ -178,7 +178,7 @@ struct GeneratorView: View {
             .background(Ink.bg.ignoresSafeArea())
             .dismissesKeyboard()
             .toolbar(.hidden, for: .navigationBar)
-            .onChange(of: options) { _, o in value = PasswordGenerator.make(o) }
+            .onChange(of: options) { _, o in value = PasswordGenerator.make(o); PasswordGenerator.saved = o }
         }
     }
 
@@ -246,8 +246,10 @@ struct SettingsView: View {
                             settingsButton("Lock now") { store.lock() }
                         }
                     }
+                    QuickUsernamesPanel().padding(.top, 12)
                     SyncPanel(sync: sync).padding(.top, 12)
-                TransferTrace()
+                    TransferTrace()
+                    AutoFillTraceView()
                     Eyebrow("Move to Vault").padding(.top, 12)
                     Panel { settingsButton("Import Dashlane or CSV file") { importing = true } }
                     Text("Choose the .zip or .csv file Dashlane made. It is read on this iPhone only. Delete the file afterwards, since it holds your passwords unprotected.")

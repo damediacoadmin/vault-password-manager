@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Vault</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+  body { padding: 14px; border: 1px solid var(--amber-line); border-radius: 10px; height: 100vh; }
+  h1 { font-size: 16px; font-weight: 600; margin: 8px 0 10px; }
+  .fields { display: grid; gap: 6px; }
+  .field { height: 34px; font-size: 13px; }
+  .u { font: 12px "Plex Mono", monospace; color: var(--muted); margin: -4px 0 10px; }
+  .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 10px; }
+  .btn { height: 34px; }
+  .top { display: flex; justify-content: space-between; align-items: center; }
+  .never { all: unset; cursor: pointer; font: 500 10px/1 "Plex Mono", monospace; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+  .never:hover { color: var(--text); }
+</style></head>
+<body>
+  <div class="top"><span class="eyebrow amber" id="eyebrow">Vault · Save login</span><button class="never" id="never">Never here</button></div>
+  <h1 id="title">Save this login?</h1>
+  <div class="fields" id="fields">
+    <input class="field" id="name" aria-label="Name" placeholder="Name">
+    <input class="field mono" id="user" aria-label="Username" placeholder="Username or email" list="users" autocomplete="off" spellcheck="false">
+    <datalist id="users"></datalist>
+  </div>
+  <div class="u" id="updUser" hidden></div>
+  <div class="actions"><button class="btn" id="later">Not now</button><button class="btn primary" id="save">Save</button></div>
+<script src="common.js"></script><script src="savebar.js"></script></body></html>

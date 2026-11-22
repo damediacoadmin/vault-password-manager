@@ -2,6 +2,9 @@
 //   GET  /vault-sync/v/:id/envelope   -> locked key envelope (needed to join a new device with the master password)
 //   GET  /vault-sync/v/:id            -> { version, payload } (Bearer token required)
 //   PUT  /vault-sync/v/:id            -> body { version, payload, envelope, tokenHash? } (Bearer token required)
+//   PUT  /vault-sync/link/:channel    -> one sealed hand-off from the iPhone to a browser being linked (max 4 KB, 10 min)
+//   GET  /vault-sync/link/:channel    -> returns that hand-off once, then deletes it (404 until it arrives)
+// The link hand-off is sealed to a key that only the waiting browser holds, so the server cannot read it.
 import { DurableObject } from "cloudflare:workers";
 
 interface Env { VAULTS: DurableObjectNamespace<VaultBox> }
@@ -13,6 +16,12 @@ const json = (o: unknown, status = 200) => new Response(JSON.stringify(o), { sta
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     const url = new URL(req.url);
+    const l = url.pathname.match(/^\/vault-sync\/link\/([a-f0-9]{32})$/);
+    if (l) {
+      if (Number(req.headers.get("content-length") ?? "0") > 4096) return json({ error: "too large" }, 413);
+      const box = env.VAULTS.get(env.VAULTS.idFromName("link:" + l[1]));
+      return box.link(req.method, req.method === "PUT" ? (await req.text()).slice(0, 4096) : "");
+    }
     const m = url.pathname.match(/^\/vault-sync\/v\/([a-f0-9]{32})(\/envelope)?$/);
     if (!m) return json({ error: "not found" }, 404);
     const len = Number(req.headers.get("content-length") ?? "0");
@@ -59,6 +68,30 @@ export class VaultBox extends DurableObject<Env> {
     if (n >= 120) return true;
     this.sql.exec(`INSERT INTO hits (t) VALUES (?)`, now);
     return false;
+  }
+
+  // One-time hand-off box used to link a new browser. Written once, read once, gone after 10 minutes.
+  async link(method: string, body: string): Promise<Response> {
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS link (k INTEGER PRIMARY KEY CHECK (k = 1), body TEXT NOT NULL, expires INTEGER NOT NULL)`);
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS hits (t INTEGER NOT NULL)`);
+    if (this.limited()) return json({ error: "slow down" }, 429);
+    this.sql.exec(`DELETE FROM link WHERE expires < ?`, Date.now());
+    if (method === "PUT") {
+      let b: { pub?: unknown; box?: unknown };
+      try { b = JSON.parse(body); } catch { return json({ error: "bad json" }, 400); }
+      if (typeof b.pub !== "string" || typeof b.box !== "string") return json({ error: "bad body" }, 400);
+      const taken = this.sql.exec(`SELECT k FROM link WHERE k = 1`).toArray().length > 0;
+      if (taken) return json({ error: "already used" }, 409);
+      this.sql.exec(`INSERT INTO link (k, body, expires) VALUES (1, ?, ?)`, JSON.stringify({ pub: b.pub, box: b.box }), Date.now() + 10 * 60_000);
+      return json({ ok: true });
+    }
+    if (method === "GET") {
+      const r = this.sql.exec(`SELECT body FROM link WHERE k = 1`).toArray()[0] as { body: string } | undefined;
+      if (!r) return json({ error: "waiting" }, 404);
+      this.sql.exec(`DELETE FROM link WHERE k = 1`);
+      return new Response(r.body, { headers });
+    }
+    return json({ error: "method" }, 405);
   }
 
   async handle(method: string, envelopeOnly: boolean, auth: string, body: string): Promise<Response> {

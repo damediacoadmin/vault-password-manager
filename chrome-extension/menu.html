@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><title>Vault</title>
+<link rel="stylesheet" href="ui.css">
+<style>
+  html, body { background: transparent; }
+  .box { background: var(--bg); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+  header { display: flex; align-items: center; justify-content: space-between; padding: 10px 12px 8px; }
+  .list { padding: 0 4px 4px; max-height: 330px; overflow: auto; }
+  .note { padding: 6px 12px 12px; color: var(--mid); font-size: 13px; }
+  .tag { font: 500 10px/1 "Plex Mono", monospace; letter-spacing: .1em; text-transform: uppercase; color: var(--amber);
+    border: 1px solid var(--amber-line); background: var(--amber-fill); padding: 4px 6px; border-radius: 4px; }
+  button.close { all: unset; cursor: pointer; color: var(--muted); font: 500 11px/1 "Plex Mono", monospace; letter-spacing: .1em; padding: 4px; }
+  button.close:hover { color: var(--text); }
+</style></head>
+<body><div class="box" id="box">
+  <header><span class="eyebrow" id="where">Vault</span><button class="close" id="close" aria-label="Close">ESC</button></header>
+  <div class="list" id="list" role="listbox"></div>
+</div>
+<script src="common.js"></script><script src="menu.js"></script></body></html>

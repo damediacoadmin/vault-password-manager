@@ -29,23 +29,24 @@ final class CredentialProviderViewController: ASCredentialProviderViewController
         host.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         view.addSubview(host.view)
         host.didMove(toParent: self)
+        KeyboardSwipe.shared.install(on: view)
     }
 
     override func prepareCredentialList(for serviceIdentifiers: [ASCredentialServiceIdentifier]) {
-        model.sites = serviceIdentifiers.map(\.identifier)
+        model.setServices(serviceIdentifiers)
         model.mode = .password
         model.start()
     }
 
     @available(iOS 18.0, *)
     override func prepareOneTimeCodeCredentialList(for serviceIdentifiers: [ASCredentialServiceIdentifier]) {
-        model.sites = serviceIdentifiers.map(\.identifier)
+        model.setServices(serviceIdentifiers)
         model.mode = .code
         model.start()
     }
 
     override func prepareCredentialList(for serviceIdentifiers: [ASCredentialServiceIdentifier], requestParameters: ASPasskeyCredentialRequestParameters) {
-        model.sites = serviceIdentifiers.map(\.identifier)
+        model.setServices(serviceIdentifiers)
         model.mode = .password
         model.signIn = .init(rp: requestParameters.relyingPartyIdentifier, clientDataHash: requestParameters.clientDataHash,
                              allowed: requestParameters.allowedCredentials)
@@ -76,8 +77,33 @@ final class CredentialProviderViewController: ASCredentialProviderViewController
             return
         }
         model.directID = credentialRequest.credentialIdentity.recordIdentifier.flatMap(UUID.init(uuidString:))
-        model.sites = [credentialRequest.credentialIdentity.serviceIdentifier.identifier]
+        model.setServices([credentialRequest.credentialIdentity.serviceIdentifier])
         if #available(iOS 18.0, *), credentialRequest.type == .oneTimeCode { model.mode = .code } else { model.mode = .password }
+        model.start()
+    }
+
+    // MARK: iOS 26.2+: the system asks Vault to generate and save passwords during sign-up.
+
+    @available(iOS 26.2, *)
+    override func performWithoutUserInteraction(generatePasswordsRequest request: ASGeneratePasswordsRequest) {
+        let rules = [request.passwordFieldPasswordRules, request.passwordRulesFromQuirks].compactMap { $0 }.joined(separator: ";")
+        extensionContext.completeGeneratePasswordRequest(results: PasswordRules.suggestions(rules: rules), completionHandler: nil)
+    }
+
+    @available(iOS 26.2, *)
+    override func performWithoutUserInteractionIfPossible(savePasswordRequest: ASSavePasswordRequest) {
+        // Saving needs the vault key, which needs Face ID, so ask for the interface.
+        extensionContext.cancelRequest(withError: NSError(domain: ASExtensionErrorDomain, code: ASExtensionError.userInteractionRequired.rawValue))
+    }
+
+    @available(iOS 26.2, *)
+    override func prepareInterface(for savePasswordRequest: ASSavePasswordRequest) {
+        let sid = savePasswordRequest.serviceIdentifier
+        model.setServices([sid])
+        let name = [savePasswordRequest.title, sid.displayName].compactMap { $0 }.first { !$0.isEmpty }
+        if let name { model.appName = name }
+        model.saveRequest = .init(username: savePasswordRequest.credential.user, password: savePasswordRequest.credential.password)
+        model.finishSave = { [weak self] in self?.extensionContext.completeSavePasswordRequest(completionHandler: nil) }
         model.start()
     }
 
@@ -86,8 +112,11 @@ final class CredentialProviderViewController: ASCredentialProviderViewController
     }
 
     private func complete(_ item: VaultItem) {
-        // Two-factor code goes on the clipboard for 60 seconds, ready to paste on the next screen.
-        if let totp = TOTP(item.otp) {
+        if let p = model.copyForConfirmBox {
+            UIPasteboard.general.setItems([[UTType.plainText.identifier: p]],
+                                          options: [.localOnly: true, .expirationDate: Date().addingTimeInterval(90)])
+        } else if let totp = TOTP(item.otp) {
+            // Two-factor code goes on the clipboard for 60 seconds, ready to paste on the next screen.
             UIPasteboard.general.setItems([[UTType.plainText.identifier: totp.code()]],
                                           options: [.localOnly: true, .expirationDate: Date().addingTimeInterval(60)])
         }

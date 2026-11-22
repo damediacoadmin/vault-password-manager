@@ -24,9 +24,7 @@ final class AIBroker: ObservableObject {
 
     static let hourlyLimit = 10
     static var socketPath: String {
-        let dir = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/Vault", isDirectory: true)
-        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
-        return dir.appendingPathComponent("ai.sock").path
+        TestMode.supportDir.appendingPathComponent("ai.sock").path
     }
 
     init(store: VaultStore) { self.store = store }
@@ -43,7 +41,7 @@ final class AIBroker: ObservableObject {
     func revoke(_ host: String) { grants[host] = nil }
 
     func start() {
-        server = SocketServer(path: Self.socketPath) { [weak self] req in
+        server = SocketServer(path: Self.socketPath, helper: PeerCheck.helperID("mcp")) { [weak self] req in
             guard let self else { return ["ok": false, "error": "Vault is not running."] }
             return await self.handle(req)
         }
@@ -211,12 +209,15 @@ struct ApprovalCard: View {
 /// Only processes signed by this developer team as the Vault helper may connect.
 final class SocketServer: @unchecked Sendable {
     let path: String
+    let requirement: String
     let handler: ([String: String]) async -> [String: Any]
     private var fd: Int32 = -1
     private var running = false
 
-    init(path: String, handler: @escaping ([String: String]) async -> [String: Any]) {
+    /// `helper` is the exact code-signing identifier allowed to connect, for example com.damediaco.vault.mcp.
+    init(path: String, helper: String, handler: @escaping ([String: String]) async -> [String: Any]) {
         self.path = path
+        self.requirement = PeerCheck.requirement(for: helper)
         self.handler = handler
     }
 
@@ -254,13 +255,13 @@ final class SocketServer: @unchecked Sendable {
         defer { close(c) }
         var tv = timeval(tv_sec: 180, tv_usec: 0)
         setsockopt(c, SOL_SOCKET, SO_RCVTIMEO, &tv, socklen_t(MemoryLayout<timeval>.size))
-        guard PeerCheck.isTrustedHelper(c) else {
+        guard PeerCheck.isTrusted(c, requirement: requirement) else {
             write(c, ["ok": false, "error": "Only the signed Vault helper may connect."])
             return
         }
         var buf = [UInt8](repeating: 0, count: 4096)
         var data = Data()
-        while !data.contains(0x0A) && data.count < 8192 {
+        while !data.contains(0x0A) && data.count < 65536 {
             let n = read(c, &buf, buf.count)
             if n <= 0 { break }
             data.append(contentsOf: buf[0..<n])
@@ -284,23 +285,31 @@ final class SocketServer: @unchecked Sendable {
 }
 
 enum PeerCheck {
-    /// Same Apple developer team as this app, and the helper's exact identifier.
-    static let requirement: String = {
+    /// This app's own Apple developer team, read from its signature.
+    static let team: String = {
         var me: SecCode?
         var info: CFDictionary?
-        var team = "UNSIGNED"
         if SecCodeCopySelf([], &me) == errSecSuccess, let me {
             var st: SecStaticCode?
             if SecCodeCopyStaticCode(me, [], &st) == errSecSuccess, let st,
                SecCodeCopySigningInformation(st, SecCSFlags(rawValue: kSecCSSigningInformation), &info) == errSecSuccess,
-               let t = (info as? [String: Any])?[kSecCodeInfoTeamIdentifier as String] as? String { team = t }
+               let t = (info as? [String: Any])?[kSecCodeInfoTeamIdentifier as String] as? String { return t }
         }
-        let helper = (Bundle.main.bundleIdentifier ?? "com.damediaco.vault.mac").replacingOccurrences(of: ".mac", with: "") + ".mcp"
-        return "anchor apple generic and certificate leaf[subject.OU] = \"\(team)\" and identifier \"\(helper)\""
+        return "UNSIGNED"
     }()
 
+    /// "mcp" -> com.damediaco.vault.mcp
+    static func helperID(_ suffix: String) -> String {
+        (Bundle.main.bundleIdentifier ?? "com.damediaco.vault.mac").replacingOccurrences(of: ".mac", with: "") + "." + suffix
+    }
+
+    /// Same Apple developer team as this app, and the helper's exact identifier.
+    static func requirement(for identifier: String) -> String {
+        "anchor apple generic and certificate leaf[subject.OU] = \"\(team)\" and identifier \"\(identifier)\""
+    }
+
     /// Verifies the connecting process's code signature using its audit token.
-    static func isTrustedHelper(_ fd: Int32) -> Bool {
+    static func isTrusted(_ fd: Int32, requirement: String) -> Bool {
         var token = audit_token_t()
         var len = socklen_t(MemoryLayout<audit_token_t>.size)
         guard getsockopt(fd, SOL_LOCAL, LOCAL_PEERTOKEN, &token, &len) == 0 else { return false }

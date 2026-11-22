@@ -41,6 +41,7 @@ struct VaultApp: App {
                     DemoSeed.runIfRequested(store)
                     #endif
                     store.onChange = { CredentialIdentities.sync($0.items) }
+                    DispatchQueue.main.async { KeyboardSwipe.shared.installOnAllWindows() }
                 }
                 // Lock the moment the iPhone itself locks, whatever the auto-lock setting.
                 .onReceive(NotificationCenter.default.publisher(for: UIApplication.protectedDataWillBecomeUnavailableNotification)) { _ in
@@ -56,6 +57,7 @@ struct VaultApp: App {
                 cover = true
             case .active:
                 cover = false
+                KeyboardSwipe.shared.installOnAllWindows()
                 if let t = backgroundedAt, store.state == .unlocked,
                    Date().timeIntervalSince(t) >= Double(VaultStore.autoLockSeconds) {
                     store.lock()
@@ -181,4 +183,14 @@ func hideKeyboard() {
 
 extension View {
     func dismissesKeyboard() -> some View { modifier(KeyboardDismissal()) }
+}
+
+extension KeyboardSwipe {
+    /// Adds it to every window of the app (call when the app becomes active).
+    func installOnAllWindows() {
+        for scene in UIApplication.shared.connectedScenes {
+            (scene as? UIWindowScene)?.windows.forEach { install(on: $0) }
+        }
+    }
+
 }

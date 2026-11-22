@@ -481,6 +481,8 @@ struct ItemEditView: View {
     @State private var url = ""
     @State private var confirmDelete = false
     @State private var scanning = false
+    @State private var genOptions = PasswordGenerator.saved
+    @State private var showGen = false
 
     init(item: VaultItem, isNew: Bool) {
         var it = item
@@ -502,10 +504,15 @@ struct ItemEditView: View {
                         if item.kind == .login {
                             Hairline()
                             InkField(label: "Username or email", text: $item.username, mono: true)
+                            UsernameChips(username: $item.username)
                             Hairline()
                             HStack(alignment: .bottom) {
                                 InkField(label: "Password", text: $newPassword, mono: true)
-                                CapsButton("New") { newPassword = PasswordGenerator.make(.init()) }.padding(.trailing, 6)
+                                CapsButton("New") { newPassword = PasswordGenerator.make(genOptions); showGen = true }.padding(.trailing, 6)
+                            }
+                            if showGen {
+                                GeneratorControls(options: $genOptions).padding(.horizontal, 16).padding(.bottom, 8)
+                                    .onChange(of: genOptions) { _, o in newPassword = PasswordGenerator.make(o) }
                             }
                             Hairline()
                             InkField(label: "Website", text: $url, mono: true)

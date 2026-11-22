@@ -83,6 +83,9 @@ targets:
       - target: vault-mcp
         copy:
           destination: executables
+      - target: vault-chrome
+        copy:
+          destination: executables
   VaultAutoFillMac:
     type: app-extension
     platform: macOS
@@ -90,8 +93,6 @@ targets:
       - path: AutoFill/macOS
       - path: AutoFill/Shared
       - path: Shared
-        excludes:
-          - "*.txt"
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.damediaco.vault.mac.autofill
@@ -110,4 +111,16 @@ targets:
         PRODUCT_BUNDLE_IDENTIFIER: com.damediaco.vault.mcp
         ENABLE_HARDENED_RUNTIME: YES
         OTHER_CODE_SIGN_FLAGS: "--identifier com.damediaco.vault.mcp --timestamp"
+        SKIP_INSTALL: YES
+  vault-chrome:
+    type: tool
+    platform: macOS
+    sources:
+      - path: Browser
+    settings:
+      base:
+        PRODUCT_NAME: vault-chrome
+        PRODUCT_BUNDLE_IDENTIFIER: com.damediaco.vault.chrome
+        ENABLE_HARDENED_RUNTIME: YES
+        OTHER_CODE_SIGN_FLAGS: "--identifier com.damediaco.vault.chrome --timestamp"
         SKIP_INSTALL: YES
