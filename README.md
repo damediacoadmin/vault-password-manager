@@ -34,7 +34,7 @@ Not covered: an attacker with your unlocked device and your biometrics, or malwa
 
 ## Build
 
-Step-by-step setup, from clone to iPhone, Mac and Chrome with your own sync server: [SETUP.md](SETUP.md). Short version:
+Step-by-step setup, from clone to iPhone, Mac and Chrome with your own sync server: [SETUP.md](SETUP.md). It also has a copy-paste prompt so your AI coding assistant can do the setup with you. Short version:
 
 Requirements: Xcode 26 or later, [XcodeGen](https://github.com/yonaskolb/XcodeGen).
 

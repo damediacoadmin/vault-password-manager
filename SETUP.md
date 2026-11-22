@@ -3,6 +3,35 @@
 This guide takes you from a fresh clone to Vault running on your iPhone, your Mac and Chrome,
 with your own private sync server. Plan on about an hour the first time.
 
+## Let your AI assistant do it
+
+Using a coding assistant that can run commands on your Mac (Claude Code, Codex, Cursor and similar)?
+Paste this prompt and it will walk through every step below with you:
+
+```
+Set up Vault, the open source password manager at
+https://github.com/damediacoadmin/vault-password-manager, for me on this Mac.
+Follow SETUP.md in that repo step by step.
+
+1. Check my Mac first: Xcode 26 or later, Homebrew, xcodegen, node. Install what is missing with
+   Homebrew, and tell me before you install anything.
+2. Clone the repo and replace the com.damediaco bundle prefix with com.<my name>
+   (ask me what to use).
+3. Ask me for my Apple Developer team ID and the domain on my Cloudflare account to use for sync.
+   Deploy sync-worker with wrangler (I will log in to Cloudflare in the browser when asked).
+   Check that https://<domain>/vault-sync/link/00000000000000000000000000000000 answers 404.
+4. Create local.yml from local.example.yml, run xcodegen, and build the VaultMac scheme.
+   Install it in /Applications. Then build the Vault scheme for my iPhone (ask me to connect it).
+5. Set the sync URL in chrome-extension/local.js and chrome-extension/manifest.json, then tell me
+   exactly how to load the extension in chrome://extensions and link it with my iPhone.
+6. Finish with the steps only I can do: create the vault and write down the recovery code,
+   turn on AutoFill on iPhone and Mac, and import from Dashlane.
+
+Rules: never ask me for my master password, recovery code or any saved password, and never
+print them. Do not paste my passwords into chat or logs. Stop and ask before anything that
+costs money.
+```
+
 ## What you need
 
 - A Mac with Xcode 26 or later
