@@ -14,7 +14,7 @@ final class AIBroker: ObservableObject {
 
     @Published private(set) var grants: [String: Date] = [:]
     @Published var pending: Pending?
-    @Published var enabled = UserDefaults.standard.object(forKey: "aiEnabled") as? Bool ?? true
+    @Published var enabled = TestMode.isOn ? true : UserDefaults.standard.object(forKey: "aiEnabled") as? Bool ?? true
 
     let store: VaultStore
     private var server: SocketServer?
@@ -34,7 +34,7 @@ final class AIBroker: ObservableObject {
 
     func setEnabled(_ on: Bool) {
         enabled = on
-        UserDefaults.standard.set(on, forKey: "aiEnabled")
+        if !TestMode.isOn { UserDefaults.standard.set(on, forKey: "aiEnabled") }   // tests never change the real setting
         if !on { grants.removeAll() }
     }
 
@@ -123,6 +123,9 @@ final class AIBroker: ObservableObject {
     }
 
     private func confirmPresence(_ reason: String) async throws {
+        #if DEBUG
+        if TestMode.isOn { if TestSeed.approve { return } else { throw VaultError.cancelled } }
+        #endif
         let ctx = LAContext()
         let policy: LAPolicy = ctx.canEvaluatePolicy(.deviceOwnerAuthenticationWithBiometrics, error: nil)
             ? .deviceOwnerAuthenticationWithBiometrics : .deviceOwnerAuthentication
@@ -132,6 +135,15 @@ final class AIBroker: ObservableObject {
     // MARK: Approval card
 
     private func ask(_ p: Pending) async -> AIEvent.Result {
+        #if DEBUG
+        if TestMode.isOn {   // automated tests: the answer comes from VAULT_TEST_AI_ANSWER
+            switch ProcessInfo.processInfo.environment["VAULT_TEST_AI_ANSWER"] {
+            case "once": return .allowedOnce
+            case "window": return .allowedWindow
+            default: return .denied
+            }
+        }
+        #endif
         if decide != nil { return .denied }   // one request at a time
         return await withCheckedContinuation { cont in
             pending = p

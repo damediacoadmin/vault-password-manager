@@ -49,7 +49,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         TestSeed.run(store)
         #endif
         store.onChange = { CredentialIdentities.sync($0.items) }
-        if !TestMode.isOn { ai.start() }
+        ai.start()
         browser.start()
         _ = sync
         // Auto-lock when the whole Mac has had no keyboard or mouse use for the chosen time

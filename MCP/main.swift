@@ -30,7 +30,11 @@ let tool: [String: Any] = [
 ]
 
 func askVault(site: String, reason: String) -> [String: Any] {
-    let path = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/Vault/ai.sock").path
+    var dir = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Library/Application Support/Vault")
+    #if DEBUG
+    if ProcessInfo.processInfo.environment["VAULT_TEST_MODE"] == "1" { dir = dir.appendingPathComponent("Test") }   // throwaway test vault
+    #endif
+    let path = dir.appendingPathComponent("ai.sock").path
     let fd = socket(AF_UNIX, SOCK_STREAM, 0)
     guard fd >= 0 else { return ["ok": false, "error": "Could not open a connection."] }
     defer { close(fd) }

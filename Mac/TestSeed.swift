@@ -25,6 +25,7 @@ enum TestSeed {
             VaultItem(title: "Example", username: "dave@example.com", password: "harbor-Tangle-7-velvet-Orbit", urls: ["https://login.example.test"], otp: "JBSWY3DPEHPK3PXP", lastUsed: Date()),
             VaultItem(title: "Example work", username: "work@example.com", password: "quartz-Ember-3-saddle-river", urls: ["example.test"], favorite: true),
             VaultItem(title: "Other site", username: "other@example.com", password: "orbit-Lamp-4-tide-Quill", urls: ["other.test"]),
+            VaultItem(title: "Private bank", username: "bank@example.com", password: "never-Share-This-9", urls: ["bank.test"], aiAllowed: false),
         ])
         store.setQuickUsernames(["dave@example.com", "work@example.com"])
         if env["VAULT_TEST_SYNC"] == "1" { act { try await upload(store); print("UPLOADED \(Sync.vaultID(store.syncKey!))") }; return }

@@ -138,7 +138,8 @@ final class VaultTests: XCTestCase {
     }
 
     func testGeneratorStrength() {
-        let words = PasswordGenerator.make(.init())
+        var w = PasswordGenerator.Options(); w.style = .words   // characters is the default now
+        let words = PasswordGenerator.make(w)
         XCTAssertGreaterThanOrEqual(words.split(separator: "-").count, 5)
         XCTAssertNotEqual(PasswordGenerator.strength(words), .weak)
         var o = PasswordGenerator.Options(); o.style = .characters; o.length = 24
